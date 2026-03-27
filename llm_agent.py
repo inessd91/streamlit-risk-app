@@ -2,8 +2,8 @@
 from dotenv import load_dotenv
 import os
 
-# Import  LangChain ≥0.3
-from langchain.chat_models import ChatOpenAI
+# Import  LangChain 
+from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 
 load_dotenv()
@@ -22,8 +22,8 @@ def call_llm(prompt: str) -> str:
         SystemMessage(content="Tu es un assistant métier expert en assurance crédit, factuel et institutionnel."),
         HumanMessage(content=prompt)
     ]
-    # LangChain ≥0.3 utilise callau lieu de invoke
-    response = llm(messages)
+    # invoke
+    response = llm.invoke(messages)
     return response.content.strip()
 
 
