@@ -2,7 +2,8 @@
 from dotenv import load_dotenv
 import os
 
-from langchain_openai import ChatOpenAI
+# Import  LangChain ≥0.3
+from langchain.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 
 load_dotenv()
@@ -10,11 +11,10 @@ load_dotenv()
 MODEL = "gpt-4o-mini"
 
 llm = ChatOpenAI(
-    model=MODEL,
+    model_name=MODEL,                
     temperature=0,
-    api_key=os.getenv("OPENAI_API_KEY")
+    openai_api_key=os.getenv("OPENAI_API_KEY")  
 )
-
 
 def call_llm(prompt: str) -> str:
     """Appel LLM"""
@@ -22,7 +22,8 @@ def call_llm(prompt: str) -> str:
         SystemMessage(content="Tu es un assistant métier expert en assurance crédit, factuel et institutionnel."),
         HumanMessage(content=prompt)
     ]
-    response = llm.invoke(messages)
+    # LangChain ≥0.3 utilise callau lieu de invoke
+    response = llm(messages)
     return response.content.strip()
 
 
@@ -66,7 +67,6 @@ Comprends automatiquement le sujet (risque, prime, décision, courrier, résumé
 Ne mélange jamais les sujets : si la question porte sur le risque, ne parle pas de prime ni de décision.
 Si la question demande un résumé du client, synthétise les données et les facteurs de risque.
 Si la question demande un courrier :  rédige un courrier formel, professionnel, institutionnel , adresse le client à la troisième personne , explique la décision et les éléments clés et ne prends aucune décision finale.
-
 
 CONTRAINTES :
 - Réponse concise : max 6 lignes pour risque/primes/decision, max 10 lignes pour courrier/résumé

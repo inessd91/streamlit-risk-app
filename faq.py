@@ -3,7 +3,8 @@ import numpy as np
 from dotenv import load_dotenv
 import os
 
-from langchain_openai import OpenAIEmbeddings
+# LangChain ≥0.3 pour embeddings
+from langchain.embeddings.openai import OpenAIEmbeddings
 
 load_dotenv()
 
@@ -11,7 +12,7 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 
 embeddings_model = OpenAIEmbeddings(
     model=EMBEDDING_MODEL,
-    api_key=os.getenv("OPENAI_API_KEY")
+    openai_api_key=os.getenv("OPENAI_API_KEY")
 )
 
 # ------------------------------

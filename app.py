@@ -218,17 +218,7 @@ if page == "Profil de risque":
     st.pyplot(fig)
     st.caption("🔴 Augmente le risque  |  🟢 Réduit le risque — comparaison par rapport à un client moyen du portefeuille.")
     
-    powerbi_iframe = """
-    <iframe title="Solvability"
-            width="100%"
-            height="600"
-            src="https://app.powerbi.com/reportEmbed?reportId=8e106567-3161-4e8e-bbe5-ceceb677f09db6&autoAuth=true&ctid=dbd6664d-4eb9-46eb-99d8-5c43ba153c61&actionBarEnabled=true&reportCopilotInEmbed=true"
-            frameborder="0"
-            allowFullScreen="true">
-    </iframe>
-    """
 
-    components.html(powerbi_iframe, height=620)
 
 # ------------------------------
 # PAGE TARIFICATION & DECISION

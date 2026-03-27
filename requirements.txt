@@ -36,12 +36,7 @@ lime
 # =========================
 streamlit
 
-# =========================
-# API REST
-# =========================
-fastapi
-uvicorn
-pydantic
+
 # =========================
 # Chatbot / LLM (Python 3.9 SAFE)
 # =========================
@@ -54,3 +49,5 @@ python-dotenv>=1.0
 
 
 
+#  -----
+greenlet<3
