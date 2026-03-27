@@ -2,7 +2,7 @@
 from dotenv import load_dotenv
 import os
 
-# Import  LangChain 
+# LangChain 
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 

@@ -3,7 +3,7 @@ import numpy as np
 from dotenv import load_dotenv
 import os
 
-# LangChain ≥0.3 pour embeddings
+# LangChain pour embeddings
 from langchain.embeddings.openai import OpenAIEmbeddings
 
 load_dotenv()
