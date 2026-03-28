@@ -8,6 +8,7 @@ import joblib
 import shap
 import matplotlib.pyplot as plt
 import hashlib, json
+import xgboost as xgb
 
 from risk_explain import explain_risk_from_shap, FEATURE_LABELS
 from assistant_hybride import assistant_hybride, summarize_client
@@ -80,12 +81,16 @@ selected_features = [
 # ============================================================
 
 @st.cache_resource
-def load_model():
-    return joblib.load("xgboost_final_model.joblib")
+def load_artifacts():
+    preprocess = joblib.load("preprocessor.joblib")
 
-model_local = load_model()
-preprocess_local = model_local.named_steps["preprocess"]
-xgb_local = model_local.named_steps["model"]
+    booster = xgb.Booster()
+    booster.load_model("xgb_booster.json")
+
+    return preprocess, booster
+
+
+preprocess_local, xgb_local = load_artifacts()
 
 # ============================================================
 # MOTEUR METIER LOCAL
@@ -109,7 +114,10 @@ DECISIONS = {
 
 def predict_and_price(data: dict):
     X = pd.DataFrame([data])[selected_features]
-    score_risque = model_local.predict_proba(X)[0][1]
+    X_proc = preprocess_local.transform(X)
+    dmat = xgb.DMatrix(X_proc)
+
+    score_risque = xgb_local.predict(dmat)[0]
 
     if score_risque < SEUILS_RISQUE[0]:
         classe = "Risque faible"
