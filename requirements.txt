@@ -49,5 +49,3 @@ python-dotenv>=1.0
 
 
 
-#  -----
-greenlet<3
