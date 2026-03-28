@@ -14,9 +14,7 @@ from risk_explain import explain_risk_from_shap, FEATURE_LABELS
 from assistant_hybride import assistant_hybride, summarize_client
 import streamlit.components.v1 as components
 
-scaler = joblib.load("preprocessor.joblib")
-booster = xgb.Booster()
-booster.load_model("xgb_booster.json")
+
 # ============================================================
 # CONFIG STREAMLIT
 # ============================================================
@@ -28,8 +26,10 @@ st.set_page_config(
 
 st.title("Évaluation du Profil de Risque Client")
 st.write("""
-Cette application évalue le risque financier d'un client et propose une tarification adaptée. Elle fournit également une décision métier, des explications visuelles des facteurs de risque via SHAP, et un assistant métier pour répondre aux questions.
+Cette application évalue le risque financier d'un client et propose une tarification adaptée.
+Elle fournit également une décision métier, des explications SHAP et un assistant.
 """)
+
 
 # ============================================================
 # MENU
@@ -40,8 +40,9 @@ page = st.sidebar.radio(
     ["Profil de risque", "Tarification & Décision", "Assistant métier"]
 )
 
+
 # ============================================================
-# SAISIE CLIENT (SIDEBAR)
+# SAISIE CLIENT
 # ============================================================
 
 st.sidebar.header("Saisie des données client")
@@ -61,6 +62,7 @@ with st.sidebar.expander("Crédit & Assurance", expanded=True):
     assurance_sur_revenu = st.slider("Assurance sur revenu (%)", 0, 100, 30)
     montant_assurance = st.number_input("Montant de l'assurance (€)", 0, 100000, 10000)
 
+
 payload = {
     "age": age,
     "revenu_par_incident": revenu_par_incident,
@@ -73,14 +75,16 @@ payload = {
     "ratio_dette_revenu": ratio_dette_revenu
 }
 
+
 selected_features = [
     "revenu_par_incident", "assurance_sur_revenu", "historique_credit",
     "dette_totale", "charges_totales", "score_credit",
     "montant_assurance", "ratio_dette_revenu", "age"
 ]
 
+
 # ============================================================
-# CHARGEMENT MODELE
+# CHARGEMENT MODELE (CLEAN + SAFE)
 # ============================================================
 
 @st.cache_resource
@@ -95,8 +99,9 @@ def load_artifacts():
 
 preprocess_local, xgb_local = load_artifacts()
 
+
 # ============================================================
-# MOTEUR METIER LOCAL
+# MOTEUR METIER
 # ============================================================
 
 SEUILS_RISQUE = [0.2, 0.6]
@@ -115,17 +120,18 @@ DECISIONS = {
     "Risque élevé": "🔴 Étude approfondie"
 }
 
+
 def predict(payload):
     X = pd.DataFrame([payload])[selected_features]
 
-    # preprocessing (StandardScaler)
-    X_proc = scaler.transform(X)
+    # ✔ preprocessing CORRECT
+    X_proc = preprocess_local.transform(X)
 
-    # XGBoost direct
+    # ✔ prediction CORRECT
     dmat = xgb.DMatrix(X_proc)
-    score_risque = float(booster.predict(dmat)[0])
+    score_risque = float(xgb_local.predict(dmat)[0])
 
-    # logique métier (copiée de pricing_engine)
+    # logique métier
     if score_risque < 0.3:
         classe = "Risque faible"
         coef = 1.0
@@ -139,16 +145,17 @@ def predict(payload):
         coef = 1.5
         decision = "Refus ou étude approfondie"
 
-    prime_theorique = score_risque * payload["montant_assurance"] * 1.1
-    prime_finale = max(min(prime_theorique * coef, 5000), 500)
+    prime_theorique = score_risque * montant_assurance * 1.1
+    prime_finale = max(min(prime_theorique * coef, PRIME_MAXIMALE), PRIME_MINIMALE)
 
     return {
         "score_risque": score_risque,
         "classe_risque": classe,
         "decision": decision,
-        "prime_theorique": prime_theorique,
-        "prime_finale": prime_finale
+        "prime_theorique": float(prime_theorique),
+        "prime_finale": float(prime_finale)
     }
+
 
 result = predict(payload)
 
