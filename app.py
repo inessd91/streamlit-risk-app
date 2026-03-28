@@ -155,11 +155,13 @@ def predict(payload):
     prime_finale = max(min(prime_theorique * coef, PRIME_MAXIMALE), PRIME_MINIMALE)
 
     return {
-        "score_risque": score_risque,
-        "classe_risque": classe,
-        "decision": decision,
-        "prime_theorique": float(prime_theorique),
-        "prime_finale": float(prime_finale)
+    "score_risque": score_risque,
+    "classe_risque": classe,
+    "decision": decision,
+    "prime_theorique": float(prime_theorique),
+    "prime_finale": float(prime_finale),
+    "prime_minimale": PRIME_MINIMALE,
+    "prime_maximale": PRIME_MAXIMALE
     }
 
 result = predict(payload)
