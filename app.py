@@ -14,6 +14,9 @@ from risk_explain import explain_risk_from_shap, FEATURE_LABELS
 from assistant_hybride import assistant_hybride, summarize_client
 import streamlit.components.v1 as components
 
+scaler = joblib.load("preprocessor.joblib")
+booster = xgb.Booster()
+booster.load_model("xgb_booster.json")
 # ============================================================
 # CONFIG STREAMLIT
 # ============================================================
@@ -112,38 +115,42 @@ DECISIONS = {
     "Risque élevé": "🔴 Étude approfondie"
 }
 
-def predict_and_price(data: dict):
-    X = pd.DataFrame([data])[selected_features]
-    X_proc = preprocess_local.transform(X)
+def predict(payload):
+    X = pd.DataFrame([payload])[selected_features]
+
+    # preprocessing (StandardScaler)
+    X_proc = scaler.transform(X)
+
+    # XGBoost direct
     dmat = xgb.DMatrix(X_proc)
+    score_risque = float(booster.predict(dmat)[0])
 
-    score_risque = xgb_local.predict(dmat)[0]
-
-    if score_risque < SEUILS_RISQUE[0]:
+    # logique métier (copiée de pricing_engine)
+    if score_risque < 0.3:
         classe = "Risque faible"
-    elif score_risque < SEUILS_RISQUE[1]:
+        coef = 1.0
+        decision = "Accepté"
+    elif score_risque < 0.6:
         classe = "Risque moyen"
+        coef = 1.2
+        decision = "Accepté avec réserve"
     else:
         classe = "Risque élevé"
+        coef = 1.5
+        decision = "Refus ou étude approfondie"
 
-    coef = COEFS[classe]
-    decision = DECISIONS[classe]
-
-    chargements = 0.3
-    prime_theorique = score_risque * data["montant_assurance"] * (1 + chargements)
-    prime_finale = max(prime_theorique * coef, PRIME_MINIMALE)
-    prime_finale = min(prime_finale, PRIME_MAXIMALE)
+    prime_theorique = score_risque * payload["montant_assurance"] * 1.1
+    prime_finale = max(min(prime_theorique * coef, 5000), 500)
 
     return {
-        "score_risque": float(score_risque),
+        "score_risque": score_risque,
         "classe_risque": classe,
         "decision": decision,
-        "prime_theorique": float(prime_theorique),
-        "prime_minimale": PRIME_MINIMALE,
-        "prime_finale": float(prime_finale)
+        "prime_theorique": prime_theorique,
+        "prime_finale": prime_finale
     }
 
-result = predict_and_price(payload)
+result = predict(payload)
 
 # ============================================================
 # SIGNATURE CLIENT & MEMOIRE CONVERSATIONNELLE
