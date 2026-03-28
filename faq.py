@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 import os
 
 # LangChain pour embeddings
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 
 load_dotenv()
 
