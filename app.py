@@ -87,17 +87,36 @@ selected_features = [
 # CHARGEMENT MODELE (CLEAN + SAFE)
 # ============================================================
 
+# ============================================================
+# CHARGEMENT MODELE (SAFE)
+# ============================================================
+
 @st.cache_resource
 def load_artifacts():
-    preprocess = joblib.load("preprocessor.joblib")
+    import joblib
+    import xgboost as xgb
 
-    booster = xgb.Booster()
-    booster.load_model("xgb_booster.json")
+    try:
+        preprocess = joblib.load("preprocessor.joblib")
+    except Exception as e:
+        st.error(f"❌ Erreur chargement preprocessor: {e}")
+        return None, None
+
+    try:
+        booster = xgb.Booster()
+        booster.load_model("xgb_booster.json")
+    except Exception as e:
+        st.error(f"❌ Erreur chargement booster: {e}")
+        return None, None
 
     return preprocess, booster
 
 
 preprocess_local, xgb_local = load_artifacts()
+
+# STOP SI MODELES NON CHARGÉS
+if preprocess_local is None or xgb_local is None:
+    st.stop()
 
 
 # ============================================================
@@ -122,16 +141,16 @@ DECISIONS = {
 
 
 def predict(payload):
+    if preprocess_local is None or xgb_local is None:
+        return None
+
     X = pd.DataFrame([payload])[selected_features]
 
-    # ✔ preprocessing CORRECT
     X_proc = preprocess_local.transform(X)
 
-    # ✔ prediction CORRECT
     dmat = xgb.DMatrix(X_proc)
     score_risque = float(xgb_local.predict(dmat)[0])
 
-    # logique métier
     if score_risque < 0.3:
         classe = "Risque faible"
         coef = 1.0
@@ -155,7 +174,6 @@ def predict(payload):
         "prime_theorique": float(prime_theorique),
         "prime_finale": float(prime_finale)
     }
-
 
 result = predict(payload)
 
