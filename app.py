@@ -1,10 +1,10 @@
 # ========================================================
 # IMPORTS
 # ========================================================
-
+import numpy as np
 import streamlit as st
 import pandas as pd
-import joblib
+
 import shap
 import matplotlib.pyplot as plt
 import hashlib, json
@@ -87,37 +87,23 @@ selected_features = [
 # CHARGEMENT MODELE (CLEAN + SAFE)
 # ============================================================
 
-# ============================================================
-# CHARGEMENT MODELE (SAFE)
-# ============================================================
+import numpy as np
 
 @st.cache_resource
 def load_artifacts():
-    import joblib
-    import xgboost as xgb
+    # Charger booster XGBoost (safe)
+    booster = xgb.Booster()
+    booster.load_model("xgb_booster.json")
 
-    try:
-        preprocess = joblib.load("preprocessor.joblib")
-    except Exception as e:
-        st.error(f"❌ Erreur chargement preprocessor: {e}")
-        return None, None
+    # Charger scaler en numpy (safe)
+    params = np.load("preprocessor_params.npz")
+    mean = params["mean"]
+    scale = params["scale"]
 
-    try:
-        booster = xgb.Booster()
-        booster.load_model("xgb_booster.json")
-    except Exception as e:
-        st.error(f"❌ Erreur chargement booster: {e}")
-        return None, None
-
-    return preprocess, booster
+    return mean, scale, booster
 
 
-preprocess_local, xgb_local = load_artifacts()
-
-# STOP SI MODELES NON CHARGÉS
-if preprocess_local is None or xgb_local is None:
-    st.stop()
-
+mean, scale, xgb_local = load_artifacts()
 
 # ============================================================
 # MOTEUR METIER
@@ -141,16 +127,17 @@ DECISIONS = {
 
 
 def predict(payload):
-    if preprocess_local is None or xgb_local is None:
-        return None
-
     X = pd.DataFrame([payload])[selected_features]
 
-    X_proc = preprocess_local.transform(X)
+    # preprocessing SAFE (sans sklearn)
+    X_values = X.values.astype(float)
+    X_proc = (X_values - mean) / scale
 
+    # prediction
     dmat = xgb.DMatrix(X_proc)
     score_risque = float(xgb_local.predict(dmat)[0])
 
+    # logique métier
     if score_risque < 0.3:
         classe = "Risque faible"
         coef = 1.0
@@ -205,7 +192,8 @@ elif st.session_state.client_signature != current_client_signature:
 # ============================================================
 
 X_input = pd.DataFrame([payload])[selected_features]
-X_processed = preprocess_local.transform(X_input)
+X_values = X_input.values.astype(float)
+X_processed = (X_values - mean) / scale
 X_processed_df = pd.DataFrame(X_processed, columns=selected_features)
 
 explainer = shap.TreeExplainer(xgb_local)

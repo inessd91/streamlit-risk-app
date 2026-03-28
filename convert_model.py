@@ -8,7 +8,7 @@ dans un format compatible avec n'importe quelle version Python / XGBoost.
 
 Produit :
   - xgb_booster.json      → booster XGBoost natif (indépendant de Python)
-  - preprocessor.joblib   → pipeline de prétraitement sklearn seul
+  - preprocessor_params.npz   
 """
 
 import warnings
@@ -29,6 +29,10 @@ with warnings.catch_warnings():
     pipeline = joblib.load(str(pipeline_path))
 
 preprocess = pipeline.named_steps["preprocess"]
+print("\n===== PREPROCESS STRUCTURE =====")
+print(preprocess)
+print("================================\n")
+
 xgb_model  = pipeline.named_steps["model"]
 booster    = xgb_model.get_booster()
 
@@ -38,8 +42,17 @@ booster.save_model(str(booster_path))
 print(f"Booster sauvegardé  : {booster_path}")
 
 # ── Sauvegarder le préprocesseur seul ─────────────────────────────────────────
-preprocess_path = BASE / "preprocessor.joblib"
-joblib.dump(preprocess, str(preprocess_path), compress=3)
-print(f"Préprocesseur sauvegardé : {preprocess_path}")
+import numpy as np
 
-print("\nConversion terminée. Ajoutez xgb_booster.json et preprocessor.joblib au repo GitHub.")
+# récupérer le scaler interne
+scaler = preprocess.named_transformers_["num"]
+
+np.savez(
+    BASE / "preprocessor_params.npz",
+    mean=scaler.mean_,
+    scale=scaler.scale_
+)
+
+print(" Scaler sauvegardé : preprocessor_params.npz")
+
+print("\nConversion terminée. Ajoutez xgb_booster.json et preprocessor_params.npz au repo GitHub.")
