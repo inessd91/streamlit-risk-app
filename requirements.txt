@@ -1,52 +1,25 @@
-# =========================
-# Manipulation des données
-# =========================
 numpy<2.0
 pandas>=1.5,<3.0
 
-# =========================
-# Visualisation
-# =========================
 matplotlib>=3.6
 seaborn>=0.12
 plotly>=5.18
 ipywidgets>=8.0
 anywidget>=0.9
 
-# =========================
-# Machine Learning
-# =========================
-scikit-learn==1.3.2
+scikit-learn==1.2.2
 joblib==1.3.2
 xgboost==1.7.6
 
-
-# =========================
-# Data & Model Validation
-# =========================
 deepchecks>=0.18
 
-# =========================
-# Explainability
-# =========================
 shap>=0.43,<1.0
 lime
 
-# =========================
-# App / Web
-# =========================
 streamlit
 
-
-# ===============================
-# Chatbot / LLM (Python 3.9 SAFE)
-# ===============================
 openai>=1.12.0
 langchain>=0.3.0
 langchain-core>=0.3.0
 langchain-openai>=0.1.0
 python-dotenv>=1.0
-
-
-
-
