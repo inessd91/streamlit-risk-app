@@ -1,4 +1,7 @@
 # assistant_hybride.py
+# assistant_hybride.py
+import os
+
 from llm_agent import call_llm, build_llm_prompt
 from faq import match_faq, get_faq_response
 
@@ -12,6 +15,10 @@ def assistant_hybride(question: str, result: dict, shap_pos: list, shap_neg: lis
         chat_history = []
 
     # --- LLM ---
+    # Si la clé OpenAI manque, on bascule automatiquement sur le fallback FAQ.
+    if use_llm and not os.getenv("OPENAI_API_KEY"):
+        use_llm = False
+
     if use_llm:
         prompt = build_llm_prompt(question, result, shap_pos, shap_neg, chat_history)
         llm_response = call_llm(prompt)

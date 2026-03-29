@@ -3,18 +3,31 @@ import numpy as np
 from dotenv import load_dotenv
 import os
 
-# LangChain pour embeddings
-from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_openai import OpenAIEmbeddings
 
 load_dotenv()
 
 EMBEDDING_MODEL = "text-embedding-3-small"
 
-embeddings_model = OpenAIEmbeddings(
-    model=EMBEDDING_MODEL,
-    openai_api_key=os.getenv("OPENAI_API_KEY")
-)
+# Client embeddings créé à la demande uniquement si OPENAI_API_KEY est défini
+_embeddings_model = None
+_faq_embeddings_initialized = False
+
+
+def _get_embeddings():
+    """Retourne le client OpenAI Embeddings ou None si pas de clé API."""
+    global _embeddings_model
+    if _embeddings_model is not None:
+        return _embeddings_model
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+    _embeddings_model = OpenAIEmbeddings(
+        model=EMBEDDING_MODEL,
+        api_key=api_key,
+    )
+    return _embeddings_model
+
 
 # ------------------------------
 # FAQ locale
@@ -27,7 +40,7 @@ FAQ_LOCAL = {
             "Elle est calculée à partir de la prime théorique issue du modèle de risque, "
             "ajustée selon la classe de risque du client et soumise à un plancher tarifaire."
         ),
-        "embedding": None
+        "embedding": None,
     },
     "risque": {
         "keywords": ["risque", "défaut", "score"],
@@ -35,7 +48,7 @@ FAQ_LOCAL = {
             "Le risque représente la propension du client à faire défaut sur ses engagements financiers. "
             "Il est estimé à partir des données financières, comportementales et déclaratives."
         ),
-        "embedding": None
+        "embedding": None,
     },
     "decision": {
         "keywords": ["décision", "acceptation", "refus"],
@@ -44,31 +57,56 @@ FAQ_LOCAL = {
             "ajustée ou nécessiter une analyse approfondie. "
             "La décision finale est validée par un analyste humain."
         ),
-        "embedding": None
-    }
+        "embedding": None,
+    },
 }
 
-# ------------------------------
-# Calcul des embeddings au démarrage
-# ------------------------------
-def init_faq_embeddings():
-    for theme, data in FAQ_LOCAL.items():
+
+def _init_faq_embeddings():
+    """Précalcule les embeddings FAQ si une clé OpenAI est disponible."""
+    global _faq_embeddings_initialized
+    if _faq_embeddings_initialized:
+        return
+    emb = _get_embeddings()
+    if emb is None:
+        _faq_embeddings_initialized = True
+        return
+    for _, data in FAQ_LOCAL.items():
         if data["embedding"] is None:
-            vec = embeddings_model.embed_query(data["text"])
+            vec = emb.embed_query(data["text"])
             data["embedding"] = np.array(vec)
+    _faq_embeddings_initialized = True
 
-init_faq_embeddings()
+
+def _match_faq_keywords(question: str, max_themes: int):
+    """Matching par mots-clés uniquement (sans API)."""
+    matched = []
+    q_lower = question.lower()
+    for theme, data in FAQ_LOCAL.items():
+        for kw in data["keywords"]:
+            if kw in q_lower:
+                matched.append(theme)
+                break
+    return matched[:max_themes]
+
 
 # ------------------------------
-# Matching FAQ basé sur embeddings
+# Matching FAQ : embeddings si clé présente, sinon mots-clés
 # ------------------------------
 def match_faq(question: str, max_themes: int = 2):
-    """Retourne les thèmes FAQ les plus pertinents pour une question"""
+    """Retourne les thèmes FAQ les plus pertinents pour une question."""
 
-    question_vec = np.array(
-        embeddings_model.embed_query(question)
-    )
+    emb = _get_embeddings()
+    if emb is None:
+        return _match_faq_keywords(question, max_themes)
 
+    _init_faq_embeddings()
+
+    # Si toujours pas d’embeddings thématiques (ex. échec silencieux), fallback mots-clés
+    if any(data["embedding"] is None for data in FAQ_LOCAL.values()):
+        return _match_faq_keywords(question, max_themes)
+
+    question_vec = np.array(emb.embed_query(question))
     scores = {}
     for theme, data in FAQ_LOCAL.items():
         faq_vec = data["embedding"]
@@ -82,16 +120,11 @@ def match_faq(question: str, max_themes: int = 2):
         if s > 0.6
     ]
 
-    # Fallback mots-clés
     if not matched:
-        q_lower = question.lower()
-        for theme, data in FAQ_LOCAL.items():
-            for kw in data["keywords"]:
-                if kw in q_lower:
-                    matched.append(theme)
-                    break
+        matched = _match_faq_keywords(question, max_themes)
 
     return matched[:max_themes]
+
 
 # ------------------------------
 # Génération de la réponse FAQ

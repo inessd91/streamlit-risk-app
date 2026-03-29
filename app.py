@@ -284,7 +284,9 @@ elif page == "Assistant métier":
     st.caption(
         "Posez votre question métier concernant le risque, la prime, la décision, ou demandez un résumé/courrier du client."
     )
-
+    
+    # MODE DÉMO GLOBAL 
+    LLM_ENABLED = False   # SI False → LLM IMPOSSIBLE à utiliser (SAFE)
     
     # Initialisation session_state
     
@@ -292,25 +294,29 @@ elif page == "Assistant métier":
         st.session_state.chat_history = []
 
     if "use_llm" not in st.session_state:
-        st.session_state.use_llm = True
+        st.session_state.use_llm = False # LLM OFF PAR DÉFAUT (mode démo sécurisé)
 
     if "pending_question" not in st.session_state:
         st.session_state.pending_question = ""
 
     if "submit_question" not in st.session_state:
         st.session_state.submit_question = False
+    
+    # AJOUT : compteur API LLM
+    if "nb_llm_requests" not in st.session_state:
+        st.session_state.nb_llm_requests = 0   
+
+    MAX_LLM_REQUESTS = 5  # limite sécurité API/controle quota llm 
 
   
-    # Checkbox LLM
-  
+    # Checkbox LLM (UI utilisateur)
     st.checkbox(
         "Afficher des explications détaillées du modèle",
-        key="use_llm"
+        key="use_llm",
+        value=False # LLM OFF par défaut en interface 
     )
 
-    
-    # Fonction appelée à l'entrée 
-    
+    # Fonction appelée à l'entrée /input user
     def on_enter():
         question = st.session_state.question_input.strip()
         if question:
@@ -319,7 +325,6 @@ elif page == "Assistant métier":
 
     
     # Champ texte pour question
-    
     st.text_input(
         "💬 Votre question",
         key="question_input",
@@ -328,7 +333,6 @@ elif page == "Assistant métier":
     )
     
     # Bouton génération courrier client
-    
     if st.button("✉️ Générer un courrier client"):
         st.session_state.pending_question = (
             "Courrier formel et professionnel à destination du client. "
@@ -337,7 +341,6 @@ elif page == "Assistant métier":
 
   
     # Préparer SHAP
-    
     shap_pos = [
         f"{e['label']} (impact {e['impact']})"
         for e in shap_details if "augmente" in e["direction"]
@@ -347,18 +350,40 @@ elif page == "Assistant métier":
         for e in shap_details if "réduit" in e["direction"]
     ]
 
+
     
     # Appel assistant si question saisie
-   
     if st.session_state.submit_question:
+
         question = st.session_state.pending_question
+
+        # PRIORITÉ 1 : MODE DÉMO GLOBAL
+        if not LLM_ENABLED:
+            use_llm_local = False   # bloque totalement le LLM
+
+        else:
+            # PRIORITÉ 2 : checkbox utilisateur
+            if st.session_state.use_llm:
+
+                # PRIORITÉ 3 : quota API
+                if st.session_state.nb_llm_requests >= MAX_LLM_REQUESTS:
+                    st.warning("⚠️ Limite LLM atteinte")
+                    use_llm_local = False
+                else:
+                    st.session_state.nb_llm_requests += 1
+                    use_llm_local = True
+
+            else:
+                use_llm_local = False
+
+        # Reponse
         response = assistant_hybride(
             question=question,
             result=result,
             shap_pos=shap_pos,
             shap_neg=shap_neg,
             chat_history=st.session_state.chat_history,
-            use_llm=st.session_state.use_llm
+            use_llm=use_llm_local   # SEULE SOURCE DE VÉRITÉ
         )
 
         
